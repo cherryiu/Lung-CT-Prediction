@@ -70,8 +70,9 @@ def get_paths():
    # Get DICOM Path
    while True:
       # Prompt user for the DICOM path
-      dicom_path_str = input("Please enter the ABSOLUTE path to the DICOM files (e.g., /data/dicom): ").strip()
+      dicom_path_str = input("Please enter the container path to the DICOM files (e.g., /data/dicom): ").strip()
       p = Path(dicom_path_str)
+      print(f"-----> dicom path inputted: {p}")
 
       # Validate existence
       if p.exists():
@@ -79,11 +80,12 @@ def get_paths():
       else:
          print(f"Path not found: {dicom_path_str}. Please verify the path and re-enter.")
       
-   # Get Annotation Path
+   # Get Annotation Paths
    while True:
       # Prompt user for the Annotation path
-      annotation_path_str = input("Please enter the ABSOLUTE path to the Annotation XML files (e.g., /data/annotations): ").strip()
+      annotation_path_str = input("Please enter the container path to the Annotation XML files (e.g., /data/annotations): ").strip()
       p = Path(annotation_path_str)
+      print(f"-----> annotation path isnputted: {p}")
       
       # Validate existence
       if p.exists():

@@ -4,15 +4,12 @@ https://www.cancerimagingarchive.net/collection/lung-pet-ct-dx/
 </br>
 
 ## Usage
-**NEED TO UPDATE (Dockerfile created)**
 This CNN is specifically for preprocessing Cancer Imaging Archiev dataset linked above although, with a few modifications, it could possibly work on other similar datasets (folders with dicom images and annotations in a similar structure) </br>
 After cloning the repo:
-1. Create an virtual environment:
-`conda create -n [env_name] python=3.12` </br> OR use VSCode to create a virtual environment with Python 3.12. It should prompt you to install the requirements
-2. Install requirements (if required):
-`pip install -r requirements.txt`
-3. For files in .tcia format:
-`python main.py --dicom-path path/to/Lung-PET-CT-Dx --annotation-path path/to/Annotations`
+1. Build the docker file
+`docker build -t lung-detector-app-v1 .`
+2. Run the docker file:
+`docker run -it --rm     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx-Annotations-XML-Files-rev12222020/Annotation":/data/annotations     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx":/data/dicom     lung-detector-app-v1`
 
 
 ## Workflow

@@ -1,5 +1,6 @@
 import SimpleITK as sitk
 import numpy as np
+import pydicom
 import os
 import tensorflow as tf
 from lxml import etree
@@ -214,6 +215,7 @@ def preprocess_data(dataset_map):
     firstKey = next(iter(dataset_map))
     fistSampleId = dataset_map[firstKey]['sampleID']
     parentDir = os.path.dirname(firstKey)
+    ds = pydicom.dcmread(firstKey)
 
     # get all .dcm files in the series in a list
     fileNames = []
@@ -254,7 +256,7 @@ def preprocess_data(dataset_map):
     img3d = sitk.GetArrayFromImage(sitk_image_volume)
 
     # get normalized data
-    norm_data = normalize_data(img3d)
+    norm_data = normalize_data(ds, img3d)
     resampled_array = resample_data(norm_data,
                                     og_spacing,
                                     target_spacing)

@@ -1,6 +1,7 @@
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Conv3D, MaxPooling3D, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.optimizers import Adam
+import tensorflow as tf
 import keras
 
 # build instance of model
