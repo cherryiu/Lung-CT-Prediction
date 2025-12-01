@@ -1,0 +1,9 @@
+opencv-python~=4.1.0.25
+numpy~=1.14.1
+pydicom~=1.3.0
+simpleitk~=1.2.0
+pandas~=0.25.0
+xmltodict~=0.13.0
+lxml~=4.9.3
+tensorflow
+keras
