@@ -11,8 +11,8 @@ COPY requirements.txt ./
 # The --no-cache-dir flag reduces the size of the final image.
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the main application script into the container
-COPY main.py .
+# Copy script & utilities into the container
+COPY . .
 
 # Command to run when the container starts
 # The environment is fully set up, so we just run the Python script
