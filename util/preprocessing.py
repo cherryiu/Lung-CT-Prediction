@@ -284,6 +284,15 @@ def preprocess_data(dataset_map):
 
     og_spacing = sitk_image_volume.GetSpacing()
     target_spacing = np.array([1.0, 1.0, 1.0])
+    
+    spacing_np = np.array(og_spacing)
+    FALLBACK_SPACING = 5.0
+
+    if spacing_np[2] < 0.001:
+        print("WARNING: zero z-spacing detected. setting Z-spacing to 5.0mm")
+        spacing_np[2] = FALLBACK_SPACING
+        sitk_image_volume.SetSpacing(spacing_np.tolist())
+        og_spacing = sitk_image_volume.GetSpacing() # update var for next call
 
     print(f"Successfully read image volume.")
 
