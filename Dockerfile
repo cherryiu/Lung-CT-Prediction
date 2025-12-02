@@ -16,4 +16,5 @@ COPY . .
 
 # Command to run when the container starts
 # The environment is fully set up, so we just run the Python script
+ENTRYPOINT ["/bin/bash", "-c"]
 CMD [ "python", "./main.py" ]

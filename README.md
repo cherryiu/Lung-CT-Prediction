@@ -10,6 +10,7 @@ After cloning the repo:
 `docker build -t lung-detector-app-v1 .`
 2. Run the docker file:
 `docker run -it --rm     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx-Annotations-XML-Files-rev12222020/Annotation":/data/annotations     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx":/data/dicom     lung-detector-app-v1`
+</br> Change the `it` flag to `-d` to run in detached mode. If you do this, add the parameter arguments `--dicom-path /data/dicom` and `--annotation-path /data/annotations`
 
 
 ## Workflow
