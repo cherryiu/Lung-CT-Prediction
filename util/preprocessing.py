@@ -8,6 +8,8 @@ from util.helpers import calculate_series_z_offset
 
 MIN_HU = -1000
 MAX_HU = 400
+TARGET_LABEL_SHAPE = (4,)
+TARGET_SHAPE = (128,128,128)
 
 def normalize_data(ds, img3d):
 
@@ -60,36 +62,70 @@ def resample_data(norm_data, original_spacing, target_spacing):
 def crop_and_pad(arr, TARGET_SHAPE, pad_val=0.0):
   current_shape = np.array(arr.shape)
   target_shape = np.array(TARGET_SHAPE)
+    
+    # Check for non-3D input immediately (as we discussed, this is critical)
+  if arr.ndim != 3:
+        raise ValueError(
+            f"Input array has {arr.ndim} dimensions (Shape: {arr.shape}), "
+            f"but expected 3D array for target {TARGET_SHAPE}."
+        )
 
-  shape_diff = current_shape - target_shape
+  # Prepare lists for slicing and padding amounts across all 3 dimensions
+  slicing_list = []
+  padding_list = []
+  
+  for current_dim, target_dim in zip(current_shape, target_shape):
+      
+      # --- 1. Calculate the difference ---
+      diff = current_dim - target_dim
 
-  # If shape_diff is positive (current > target), this is the crop amount.
-  crop_start = np.maximum(0, shape_diff // 2)
-  crop_end = current_shape - np.maximum(0, shape_diff - shape_diff // 2)
+      if diff > 0:
+          # Case: Current is LARGER than target (Needs Cropping)
+          # Center the crop by determining the excess to remove from start/end
+          crop_start = diff // 2
+          crop_end = current_dim - (diff - crop_start) # Ensures remainder is removed from the end
+          
+          slicing_list.append(slice(crop_start, crop_end))
+          padding_list.append((0, 0)) # No padding needed
+      
+      elif diff < 0:
+          # Case: Current is SMALLER than target (Needs Padding)
+          # Center the padding by determining the shortfall to add to start/end
+          pad_needed = -diff
+          pad_start = pad_needed // 2
+          pad_end = pad_needed - pad_start # Ensures remainder is added to the end
+          
+          slicing_list.append(slice(0, current_dim)) # Take the whole array
+          padding_list.append((pad_start, pad_end))
+          
+      else:
+          # Case: Current == Target (No change needed)
+          slicing_list.append(slice(0, current_dim))
+          padding_list.append((0, 0))
 
-  # If shape_diff is negative (current < target), this is the padding needed.
-  pad_start = np.maximum(0, -shape_diff // 2)
-  pad_end = np.maximum(0, -shape_diff + shape_diff // 2)
 
-  print("Cropping and padding...")
-  # crop
-  cropped_array = arr[
-      crop_start[0]:crop_end[0],
-      crop_start[1]:crop_end[1],
-      crop_start[2]:crop_end[2]
-  ]
-
-  # pad
-  padding_amounts = tuple(zip(pad_start, pad_end))
-
+  print(f"Cropping/Padding: Slices: {slicing_list}, Padding: {padding_list}")
+  
+  # 2. Perform Cropping (using the pre-calculated slices)
+  # The '*' unpacks the list of slice objects to apply to the array indices
+  cropped_array = arr[tuple(slicing_list)]
+  
+  # 3. Perform Padding (using the pre-calculated padding list)
   padded_array = np.pad(
       cropped_array,
-      padding_amounts,
+      padding_list,
       mode='constant',
       constant_values=pad_val
   )
 
-  return padded_array.astype(arr.dtype) # Ensure consistent data type
+  # 4. Final Validation Check (This is the most important debugging step)
+  if padded_array.shape != TARGET_SHAPE:
+      raise ValueError(
+          f"Padded array output shape {padded_array.shape} "
+          f"did not match target {TARGET_SHAPE}. Debug failed sample!"
+      )
+
+  return padded_array.astype(arr.dtype)
 
 # get bounding boxes
 def parse_bboxes(xml_path):
@@ -122,6 +158,26 @@ def parse_bboxes(xml_path):
     res = {'sop': sop_uid, 'label': label, 'diagnosis': diagnosis, 'bbox': [x1,y1,x2,y2]}
   return res
 
+
+def generate_mask(transformed_bboxes, target_shape):
+  print("Generating mask...")
+  mask_volume = np.zeros(target_shape, dtype=np.uint8)
+
+  for bbox in transformed_bboxes:
+    # Coordinates in the array slicing order (Z, Y, X)
+    z_min, x_min, y_min, z_max, x_max, y_max, label = bbox 
+    
+    # 2. Use integer indices for slicing
+    z_min, x_min, y_min = int(z_min), int(x_min), int(y_min)
+    z_max, x_max, y_max = int(z_max), int(x_max), int(y_max)
+    
+    # 3. Apply NumPy Slicing to fill the region with the label
+    mask_volume[z_min:z_max, 
+                y_min:y_max, 
+                x_min:x_max] = int(label)
+  
+  return mask_volume
+    
 
 # apply same preprocessing to coordinates as image volume
 def transform_coords(coords_list, original_shape, target_shape, original_spacing, target_spacing, global_z_offset):
@@ -184,27 +240,6 @@ def transform_coords(coords_list, original_shape, target_shape, original_spacing
     res_coords.append(transformed_bbox)
 
   return res_coords
-
-
-def generate_mask(transformed_bboxes, target_shape):
-  print("Generating mask...")
-  mask_volume = np.zeros(target_shape, dtype=np.uint8)
-
-  for bbox in transformed_bboxes:
-    # Coordinates in the array slicing order (Z, Y, X)
-    z_min, x_min, y_min, z_max, x_max, y_max, label = bbox 
-    
-    # 2. Use integer indices for slicing
-    z_min, x_min, y_min = int(z_min), int(x_min), int(y_min)
-    z_max, x_max, y_max = int(z_max), int(x_max), int(y_max)
-    
-    # 3. Apply NumPy Slicing to fill the region with the label
-    mask_volume[z_min:z_max, 
-                y_min:y_max, 
-                x_min:x_max] = int(label)
-  
-  return mask_volume
-    
 
 #-------- Final Function for raw data ---------#
 
@@ -285,15 +320,31 @@ def preprocess_data(dataset_map):
     integer_label = mask_volume.max()
     # convert to one hot encoded vector
     onehot_vector = tf.keras.utils.to_categorical(integer_label, num_classes=4)
-
     # CNN requires fixed input size (D x H x W)
     final_tensor = crop_and_pad(resampled_array, TARGET_SHAPE, 0.0)
-    print(f"Tensor for series {fistSampleId} complete. ")
+
+    # CHECK A: Image Tensor Shape
+    if final_tensor.shape != TARGET_SHAPE:
+        print("\n!!! FATAL IMAGE SHAPE MISMATCH !!!")
+        print(f"Expected Shape: {TARGET_SHAPE}. Actual Shape: {final_tensor.shape}")
+        # Raise a clear error that includes the failing shape
+        raise ValueError(f"Image shape error on sample: {final_tensor.shape}")
+        
+    # CHECK B: One-Hot Vector Shape
+    if onehot_vector.shape != TARGET_LABEL_SHAPE:
+        print("\n!!! FATAL LABEL SHAPE MISMATCH !!!")
+        print(f"Expected Shape: {TARGET_LABEL_SHAPE}. Actual Shape: {onehot_vector.shape}")
+        # Raise a clear error that includes the failing shape
+        raise ValueError(f"One-hot shape error on sample: {onehot_vector.shape}")
+
+
+    print(f"Tensor for series {fistSampleId} complete.")
 
     return final_tensor, onehot_vector
 
   except Exception as e:
-    print(e)
+    print(f"!!! PROCESSING FAILED for sample {fistSampleId}: {e}")
+    return None, None
 
 #------- functions for preparing tensorflow dataset --------#
 

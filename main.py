@@ -28,7 +28,7 @@ def run_model(params):
    }
 
    tensor_list = []
-   mask_list = []
+   label_list = []
 
    for series_uid, series_arr in filtered_series.items():
       # sort best series by z coordinate if available, else by instance number
@@ -38,13 +38,17 @@ def run_model(params):
       series_dataset_map = create_dataset_map(series_arr, params['annotations'])
 
       # create final tensors for 3D image and corresponding mask 
-      tensor, mask_volume = preprocess_data(series_dataset_map)
+      tensor, label = preprocess_data(series_dataset_map)
 
-      # add to final list
-      tensor_list.append(tensor)
-      mask_list.append(mask_volume)
+      # --- NEW CHECK: ONLY APPEND IF THE DATA IS VALID ---
+      if tensor is not None and label is not None:
+         tensor_list.append(tensor)
+         label_list.append(label)
+      else:
+         print(f"Skipping failed sample.")
+      
 
-   dataset = tf.data.Dataset.from_tensor_slices((tensor_list, mask_list))
+   dataset = tf.data.Dataset.from_tensor_slices((tensor_list, label_list))
 
    #---------- Preparing the tensorflow dataset ---------#
    # Assuming 'tensor_list' and 'dataset' (the unbatched dataset) are available
@@ -111,13 +115,19 @@ if __name__ == "__main__":
    params = {
       'data_dir': dicom_path,
       'annotations': annotation_path,
-      'max_files': 100,  # remove later
+
+      'buffer_size': 2500,
+      'batch_size': 32,
+      'epochs': 15,
+      'learning_rate': 0.0003,
+      'img_size': 299,
 
       'train_ratio': 0.7,
       'val_ratio': 0.15,
       'test_ratio': 0.15,  
 
-       'target_shape': (128, 128, 128, 1)    
+      'num_classes': 4,
+      'target_shape': (128, 128, 128, 1)    
    }
 
    run_model(params)
