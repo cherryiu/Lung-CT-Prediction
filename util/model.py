@@ -1,5 +1,5 @@
 from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Conv3D, MaxPooling3D, Flatten, Dense, Dropout, BatchNormalization
+from tensorflow.keras.layers import GlobalAveragePooling3D, Conv3D, MaxPooling3D, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 import keras
@@ -29,7 +29,9 @@ def build_3d_model(target_shape, num_classes):
         Dropout(0.3),
 
         # Classification/Segmentation Head
-        Flatten(), # Convert 3D feature map to 1D vector
+        GlobalAveragePooling3D(),
+
+        #Flatten(), # Convert 3D feature map to 1D vector
         Dense(512, activation='relu'),
         Dropout(0.5),
 

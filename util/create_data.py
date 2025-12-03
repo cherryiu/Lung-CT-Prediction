@@ -7,7 +7,7 @@ from pathlib import Path
 from collections import defaultdict
 from util.helpers import *
 
-MAX_FILES = 100000
+MAX_FILES = 10000
 delimiter = '_Dx-'
 
 def create_metadata_sitk(path):

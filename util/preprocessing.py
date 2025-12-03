@@ -9,7 +9,7 @@ from util.helpers import calculate_series_z_offset
 MIN_HU = -1000
 MAX_HU = 400
 TARGET_LABEL_SHAPE = (4,)
-TARGET_SHAPE = (128,128,128)
+TARGET_SHAPE = (64,64,64)
 
 def normalize_data(ds, img3d):
 
@@ -283,8 +283,6 @@ def preprocess_data(dataset_map):
     sitk_image_volume = reader.Execute()
 
     og_spacing = sitk_image_volume.GetSpacing()
-    target_spacing = np.array([1.0, 1.0, 1.0])
-    
     spacing_np = np.array(og_spacing)
     FALLBACK_SPACING = 5.0
 
@@ -292,7 +290,9 @@ def preprocess_data(dataset_map):
         print("WARNING: zero z-spacing detected. setting Z-spacing to 5.0mm")
         spacing_np[2] = FALLBACK_SPACING
         sitk_image_volume.SetSpacing(spacing_np.tolist())
-        og_spacing = sitk_image_volume.GetSpacing() # update var for next call
+    
+    og_spacing = sitk_image_volume.GetSpacing() # update var for next call
+    target_spacing = np.array([1.0, 1.0, 1.0])
 
     print(f"Successfully read image volume.")
 
@@ -307,7 +307,7 @@ def preprocess_data(dataset_map):
 
     # define target (D x H x W) shape for 3D CNN input
     ORIGINAL_SHAPE = np.array(resampled_array.shape)
-    TARGET_SHAPE = (128, 128, 128)
+    
 
     global_z_offset = calculate_series_z_offset(annotations_extracted,
                                                 og_spacing,

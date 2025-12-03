@@ -117,7 +117,7 @@ if __name__ == "__main__":
       'annotations': annotation_path,
 
       'buffer_size': 2500,
-      'batch_size': 32,
+      'batch_size': 4,
       'epochs': 15,
       'learning_rate': 0.0003,
       'img_size': 299,
@@ -127,7 +127,7 @@ if __name__ == "__main__":
       'test_ratio': 0.15,  
 
       'num_classes': 4,
-      'target_shape': (128, 128, 128, 1)    
+      'target_shape': (64, 64, 64, 1)    
    }
    
    print("Running script.")
