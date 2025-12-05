@@ -5,12 +5,24 @@ https://www.cancerimagingarchive.net/collection/lung-pet-ct-dx/
 
 ## Usage
 This CNN is specifically for preprocessing Cancer Imaging Archiev dataset linked above although, with a few modifications, it could possibly work on other similar datasets (folders with dicom images and annotations in a similar structure) </br>
-After cloning the repo:
-1. Build the docker file
+After cloning the repo you can choose to run it with docker, or run it natively using `nohup`.
+### To run with Docker:
+1. Build the docker file. Replace `lung-detector-app-v1` with your image name
 `docker build -t lung-detector-app-v1 .`
-2. Run the docker file:
-`docker run -it --rm     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx-Annotations-XML-Files-rev12222020/Annotation":/data/annotations     -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx":/data/dicom     lung-detector-app-v1`
-</br> Change the `it` flag to `-d` to run in detached mode. If you do this, add the parameter arguments `--dicom-path /data/dicom` and `--annotation-path /data/annotations`
+2. Run the docker file. Example usage:
+`docker run -d --gpus all \
+   -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx-Annotations-XML-Files-rev12222020/Annotation":/data/annotations \
+   -v "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx":/data/dicom \
+   lung-detector-app-v1 \
+   --dicom-path /data/dicom \
+   --annotation-path /data/annotations`
+### To run with nohup:
+1. Create a virtual environment and install the requirements (`pip install -r requirements.txt`)
+2. Run the command with the location of your .venv environment. Example usage: 
+`nohup /home/purple/Desktop/Lung-CT-Prediction/.venv/bin/python main.py \
+—dicom-path "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx/" \
+—annotation-path "/home/purple/Desktop/manifest-1608669183333/Lung-PET-CT-Dx-Annotations-XML-Files-rev12222020/Annotation"`
+
 
 
 ## Workflow
