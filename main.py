@@ -49,17 +49,19 @@ def run_model(params):
       
 
    dataset = tf.data.Dataset.from_tensor_slices((tensor_list, label_list))
-
+   
    #---------- Preparing the tensorflow dataset ---------#
    # Assuming 'tensor_list' and 'dataset' (the unbatched dataset) are available
    total_size = len(tensor_list)
+
    dataset, train_dataset, val_dataset, test_dataset = split_tf_dataset(params, dataset, total_size)
    
    # Prepare all three sets
-   train_dataset_batched = prepare_dataset(train_dataset, params['batch_size'])
-   val_dataset_batched = prepare_dataset(val_dataset, params['batch_size'])
-   test_dataset_batched = prepare_dataset(test_dataset, params['batch_size'])
+   train_dataset_batched = prepare_dataset(train_dataset, params['batch_size'], True, True)
+   val_dataset_batched = prepare_dataset(val_dataset, params['batch_size'], False, False)
+   test_dataset_batched = prepare_dataset(test_dataset, params['batch_size'], False, False)
 
+   print("Dataset create and split. Total size: ", total_size)
 
    #-------------- Create instance of CNN --------------#
    
@@ -116,8 +118,8 @@ if __name__ == "__main__":
       'data_dir': dicom_path,
       'annotations': annotation_path,
 
-      'buffer_size': 2500,
-      'batch_size': 4,
+      'buffer_size': 16384,
+      'batch_size': 16,
       'epochs': 15,
       'learning_rate': 0.0003,
       'img_size': 299,

@@ -1,8 +1,11 @@
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import GlobalAveragePooling3D, Conv3D, MaxPooling3D, Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.optimizers import Adam
+from tensorflow import keras
 import tensorflow as tf
-import keras
+
+# Turn off XLA JIT globally to addr kernel error
+tf.config.optimizer.set_jit(False)
 
 # build instance of model
 def build_3d_model(target_shape, num_classes):
@@ -56,27 +59,32 @@ def compile_model(model):
 
 def train_model(model, params, train_size, train_dataset_batched, test_dataset_batched, val_dataset_batched):
   print("Starting training on the training split...")
-  callbacks = [
-    keras.callbacks.TensorBoard(log_dir='./logs')
-  ]
+  
+  try:
+    callbacks = [
+      keras.callbacks.TensorBoard(log_dir='./logs')
+    ]
 
-  steps_per_epoch = train_size // params['batch_size']
+    steps_per_epoch = train_size // params['batch_size']
 
-  history = model.fit(
-    # Train only on the batched training dataset
-    train_dataset_batched,
-    steps_per_epoch=steps_per_epoch,
+    history = model.fit(
+      # Train only on the batched training dataset
+      train_dataset_batched,
+      steps_per_epoch=steps_per_epoch,
 
-    # Use the batched validation dataset for monitoring
-    validation_data=val_dataset_batched,
+      # Use the batched validation dataset for monitoring
+      validation_data=val_dataset_batched,
 
-    epochs=params['epochs'],
-    verbose=1,
-    callbacks=callbacks
-  )
+      epochs=params['epochs'],
+      verbose=1,
+      callbacks=callbacks
+    )
 
-  # You will typically evaluate the final model performance
-  # on the test set *after* training is complete
-  loss, accuracy = model.evaluate(test_dataset_batched, verbose=0)
-  print(f"\nFinal Test Set Loss: %.2f" % loss)
-  print(f"\nFinal Test Set Accuracy: {accuracy*100:.2f}%")
+    # You will typically evaluate the final model performance
+    # on the test set *after* training is complete
+    loss, accuracy = model.evaluate(test_dataset_batched, verbose=0)
+    print(f"\nFinal Test Set Loss: %.2f" % loss)
+    print(f"\nFinal Test Set Accuracy: {accuracy*100:.2f}%")
+  
+  except Exception as e: print(e) 
+

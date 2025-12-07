@@ -369,10 +369,14 @@ def cast_and_reshape(image, label):
     return image, label
 
 # batch and prefetch to each split separately
-def prepare_dataset(ds, batch_size):
+def prepare_dataset(ds, batch_size, shuffle=False, repeat=False):
     ds = ds.map(cast_and_reshape, num_parallel_calls=tf.data.AUTOTUNE)
-
-    # Note: Only shuffle the training data further, validation/test data should NOT be shuffled
-    ds = ds.batch(batch_size).repeat()
+    
+    if shuffle:
+        ds = ds.shuffle(10_000)
+    ds = ds.batch(batch_size)
+    
+    if repeat:
+        ds = ds.batch(batch_size).repeat()
 
     return ds.prefetch(tf.data.AUTOTUNE)

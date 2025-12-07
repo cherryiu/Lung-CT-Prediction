@@ -1,20 +1,25 @@
-# Use the official Python 3.12 slim image as the base
-FROM python:3.12-slim
+# recommended CUDA base image
+FROM nvcr.io/nvidia/tensorflow:24.06-tf2-py3 AS final
 
-# Set the working directory inside the container
+# set working directory in container
 WORKDIR /usr/src/app
 
+# Install utilities
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential wget curl git && \
+    rm -rf /var/lib/apt/lists/* # clean up cache 
+
+# upgrade pip 
+RUN python3 -m pip install --upgrade pip setuptools wheel
+
 # Copy the requirements file into the container
-COPY requirements.txt ./
+COPY requirements.txt .
 
 # Install the Python dependencies
-# The --no-cache-dir flag reduces the size of the final image.
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt --upgrade --upgrade-strategy only-if-needed 
 
-# Copy script & utilities into the container
+# copy src code
 COPY . .
 
-# Command to run when the container starts
-# The environment is fully set up, so we just run the Python script
-ENTRYPOINT [ "python", "./main.py" ]
+ENTRYPOINT [ "python3", "-u", "./main.py" ]
 CMD []
