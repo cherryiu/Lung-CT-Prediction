@@ -374,9 +374,10 @@ def prepare_dataset(ds, batch_size, shuffle=False, repeat=False):
     
     if shuffle:
         ds = ds.shuffle(10_000)
-    ds = ds.batch(batch_size)
     
+    ds = ds.batch(batch_size)
+
     if repeat:
-        ds = ds.batch(batch_size).repeat()
+        ds = ds.repeat()
 
     return ds.prefetch(tf.data.AUTOTUNE)

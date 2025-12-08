@@ -62,6 +62,24 @@ def run_model(params):
    test_dataset_batched = prepare_dataset(test_dataset, params['batch_size'], False, False)
 
    print("Dataset create and split. Total size: ", total_size)
+   
+   # sanity check
+   for _, y in train_dataset.take(5):
+       print("train label:", y.numpy())
+   
+   labelcheck = []
+   
+   for _, y in val_dataset.take(100):
+       labelcheck.append(y.numpy())
+   
+   labelcheck = np.array(labelcheck)
+   print("Val label shape:", labelcheck.shape)
+   print("Unique labels in val:", np.unique(labelcheck, axis=0))
+
+   for _, y in val_dataset.take(5):
+       print("val label:", y.numpy())
+
+   
 
    #-------------- Create instance of CNN --------------#
    

@@ -70,6 +70,8 @@ def split_tf_dataset(params, dataset, total_size):
   val_size = math.floor(VAL_RATIO * total_size)
   # The remaining instances go to the test set to account for floor rounding
   test_size = total_size - train_size - val_size
+  
+  print("train, val, test sizes:", train_size, val_size, test_size) 
 
   # Shuffle the ENTIRE dataset
   dataset = dataset.shuffle(buffer_size=params['buffer_size'])
