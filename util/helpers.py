@@ -31,25 +31,33 @@ def find_xml_for_slice(slice_element, annotations_root):
 def calculate_series_z_offset(tumor_coords, og_spacing, target_spacing):
   # 1. Identify all tumor bounding boxes (exclude placeholders)
   # bbox format: [Zmin, Xmin, Ymin, Zmax, Xmax, Ymax, Label]
-  tumor_bboxes = [b for b in tumor_coords if b[6] != 0]
+  tumor_bboxes = [b for b in tumor_coords
+                  if b is not None and len(b) >= 7 and b[6] != 0]
 
   if not tumor_bboxes:
       # If no tumor is present, the offset is irrelevant (return 0 or handle separately)
       return 0
+  z_mins = [b[0] for b in tumor_bboxes if b[0] is not None]
+  z_maxs = [b[3] for b in tumor_bboxes if b[3] is not None]
+
+  if not z_mins or not z_maxs:
+      # All Z values are None → something is wrong upstream
+      raise ValueError("No valid Z coordinates found for tumor bboxes.")
+
 
   # Get the Z-scaling factor (assuming original_spacing is X, Y, Z order)
   z_scale_factor = og_spacing[2] / target_spacing[2]
 
   # Find the ABSOLUTE Z-min and Z-max across the entire tumor volume (original physical coords)
-  global_z_min_orig = np.min([b[0] for b in tumor_bboxes])
-  global_z_max_orig = np.max([b[3] for b in tumor_bboxes])
+  global_z_min_orig = np.min(z_mins)
+  global_z_max_orig = np.max(z_maxs)
 
   # 2. Rescale the global boundaries
   global_z_min_scaled = global_z_min_orig * z_scale_factor
   global_z_max_scaled = global_z_max_orig * z_scale_factor
 
   # 3. Calculate the single GLOBAL Z-Offset
-  TARGET_CENTER = 128 / 2  # Assuming target shape is 128x128x128
+  TARGET_CENTER = 64 / 2  # Assuming target shape is 64x64x64
   global_tumor_center_Z = (global_z_min_scaled + global_z_max_scaled) / 2
 
   # 4. Calculate the offset: Center of tumor minus center of target window

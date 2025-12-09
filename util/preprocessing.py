@@ -9,20 +9,21 @@ from util.helpers import calculate_series_z_offset
 
 MIN_HU = -1000
 MAX_HU = 400
-TARGET_LABEL_SHAPE = (4,)
+TARGET_LABEL_SHAPE = (3,)
 TARGET_SHAPE = (64,64,64)
 
 def normalize_data(ds, img3d):
 
   # print('CT volume shape (z,y,x):', img3d.shape)
 
-  rescaleIntercept = float(getattr(ds, 'RescaleIntercept', 0.0))
-  rescaleSlope = float(getattr(ds, 'RescaleSlope', None))
+  rescaleIntercept = float(getattr(ds, 'RescaleIntercept', 0.0) or 0.0)
+  rescaleSlope = float(getattr(ds, 'RescaleSlope', 1.0) or 1.0)
 
   hu_val = (img3d * rescaleSlope) + rescaleIntercept
 
   # clip extreme HU values to common window range
   data_clipped = np.clip(hu_val, MIN_HU, MAX_HU)
+  
   # normalized to [0, 1]
   norm_data  = (data_clipped - MIN_HU) / (MAX_HU - MIN_HU)
   # convert to float32 for model input
@@ -139,14 +140,14 @@ def parse_bboxes(xml_path):
     # get classifiers
     diagnosis = obj.findtext('./name')
     match diagnosis:
-      case 'A':
+      case 'A'|'a':
           diagnosis = "Adenocarcinoma"
           label = 1
-      case 'B':
+      case 'B'|'b':
           diagnosis = "Small Cell Carcinoma"
           label = 2
-      case 'E':
-          diagnosis = "Large Cell Carcinoma"
+      case 'G'|'g':
+          diagnosis = "Squamous Cell Carcinoma"
           label = 3
       case _:
           diagnosis = None
@@ -160,12 +161,12 @@ def parse_bboxes(xml_path):
   return res
 
 
-def make_label_from_bboxes(transformed_bboxes, num_classes=4):
+def make_label_from_bboxes(transformed_bboxes, num_classes=3):
     """
-    Create a one-hot 4-class label from bounding boxes.
+    Create a one-hot 3-class label from bounding boxes.
     - Each bbox is [..., label]
     - label == 0  → background (ignored)
-    - label in {1,2,3,4} → tumor types 0–3 after shifting
+    - label in {1,2,3} → tumor types 0–2 after shifting
     """
     # Extract raw labels
     raw_labels = [int(b[-1]) for b in transformed_bboxes]
@@ -203,8 +204,8 @@ def transform_coords(coords_list, original_shape, target_shape, original_spacing
 
   # global offset for non-tumors
   global_crop_offset = np.maximum(0, shape_diff // 2)
-  TARGET_CENTER = 128 / 2 # hardcoding center because we know target shape
-
+  TARGET_CENTER_Y = target_shape[1] / 2.0
+  TARGET_CENTER_X = target_shape[2] / 2.0
 
   # bbox = [Zmin, Xmin, Ymin, Zmax, Xmax, Ymax, Label]
   for bbox in coords_list:
@@ -223,8 +224,8 @@ def transform_coords(coords_list, original_shape, target_shape, original_spacing
       tumor_center_X = (x_coords[0] + x_coords[1]) / 2
 
       # Calculate the local offset needed to center the tumor
-      local_offset_Y = tumor_center_Y - TARGET_CENTER
-      local_offset_X = tumor_center_X - TARGET_CENTER
+      local_offset_Y = tumor_center_Y - TARGET_CENTER_Y
+      local_offset_X = tumor_center_X - TARGET_CENTER_X
 
       # 2. Shift (apply crop offset)
       new_z_coords = z_coords - global_z_offset
@@ -300,8 +301,6 @@ def preprocess_data(dataset_map):
     spacing_np = np.array(og_spacing)
     FALLBACK_SPACING = 5.0
 
-    TARGET_SHAPE = (128, 128, 128)
-
     if spacing_np[2] < 0.001:
         print("WARNING: zero z-spacing detected. setting Z-spacing to 5.0mm")
         spacing_np[2] = FALLBACK_SPACING
@@ -342,7 +341,7 @@ def preprocess_data(dataset_map):
     # mask_volume = generate_mask(transformed_coords, TARGET_SHAPE)
     print("Transformed bboxes: ", transformed_coords)
 
-    onehot_vector = make_label_from_bboxes(transformed_coords, num_classes=4)
+    onehot_vector = make_label_from_bboxes(transformed_coords, num_classes=3)
     print("One-hot vector: ", onehot_vector)
 
     # CNN requires fixed input size (D x H x W)

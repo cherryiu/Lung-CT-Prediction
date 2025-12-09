@@ -137,8 +137,8 @@ if __name__ == "__main__":
       'annotations': annotation_path,
 
       'buffer_size': 16384,
-      'batch_size': 16,
-      'epochs': 15,
+      'batch_size': 4,
+      'epochs': 32,
       'learning_rate': 0.0003,
       'img_size': 299,
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
       'val_ratio': 0.15,
       'test_ratio': 0.15,  
 
-      'num_classes': 4,
+      'num_classes': 3,
       'target_shape': (64, 64, 64, 1)    
    }
    

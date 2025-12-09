@@ -3,6 +3,7 @@ from tensorflow.keras.layers import GlobalAveragePooling3D, Conv3D, MaxPooling3D
 from tensorflow.keras.optimizers import Adam
 from tensorflow import keras
 import tensorflow as tf
+from sklearn.utils.class_weight import compute_class_weight
 
 # Turn off XLA JIT globally to addr kernel error
 tf.config.optimizer.set_jit(False)
@@ -35,24 +36,20 @@ def build_3d_model(target_shape, num_classes):
         GlobalAveragePooling3D(),
 
         #Flatten(), # Convert 3D feature map to 1D vector
-        Dense(512, activation='relu'),
+        Dense(128, activation='relu', kernel_regularizer=regularizers.l2(1e-4)),
         Dropout(0.5),
 
         # Output Layer:
-        # # For Binary Classification (e.g., tumor/no tumor)
-        # Dense(1, activation='sigmoid')
-
-        # OR for Multi-class Classification:
         Dense(num_classes, activation='softmax')
 
-        # OR for Segmentation (U-Net style, requires TransposeConv3D/UpSampling3D layers)
-    ])
+
+        ])
   return model
 
 def compile_model(model):
   # Compile the Model
    model.compile(
-      optimizer=Adam(learning_rate=0.0001),
+      optimizer=Adam(learning_rate=1e-4),
       loss='categorical_crossentropy',
       metrics=['accuracy']
    )
@@ -61,11 +58,36 @@ def train_model(model, params, train_size, train_dataset_batched, test_dataset_b
   print("Starting training on the training split...")
   
   try:
+      # add scheduler to start aggressive then fine tune
+    lr_scheduler = tf.keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss',
+    	factor=0.5,
+    	patience=4,
+    	min_lr=1e-6
+	)
+
     callbacks = [
-      keras.callbacks.TensorBoard(log_dir='./logs')
-    ]
+    	keras.callbacks.TensorBoard(log_dir='./logs'),
+ 		lr_scheduler,
+	  	tf.keras.callbacks.EarlyStopping(
+        	monitor='val_loss',
+        	patience=8,
+        	restore_best_weights=True
+    	)    
+	]
 
     steps_per_epoch = train_size // params['batch_size']
+    
+    # address class imbalance (hard coded, fix later)
+	N0 = 266
+	N1 = 44
+	N2 = 62
+    total = N0 + N1 + N2
+	class_weight = {
+		0: total / (params['num_classes'] * N0),
+		1: total / (params['num_classes'] * N1),
+		2: total / (params['num_classes'] * N2)
+	}
 
     history = model.fit(
       # Train only on the batched training dataset
@@ -77,7 +99,8 @@ def train_model(model, params, train_size, train_dataset_batched, test_dataset_b
 
       epochs=params['epochs'],
       verbose=1,
-      callbacks=callbacks
+      callbacks=callbacks,
+	  class_weight=class_weight
     )
 
     # You will typically evaluate the final model performance
@@ -85,6 +108,8 @@ def train_model(model, params, train_size, train_dataset_batched, test_dataset_b
     loss, accuracy = model.evaluate(test_dataset_batched, verbose=0)
     print(f"\nFinal Test Set Loss: %.2f" % loss)
     print(f"\nFinal Test Set Accuracy: {accuracy*100:.2f}%")
-  
-  except Exception as e: print(e) 
+    
+    return history 
+
+except Exception as e: print("Training failed with exception: ", e) 
 
