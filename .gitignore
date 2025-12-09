@@ -1,1 +1,8 @@
 DATA/
+util/__pycache__/
+venv/
+.env
+.DS_Store
+.ipynb_checkpoints/
+*.pyc
+logs/

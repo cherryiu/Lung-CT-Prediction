@@ -4,6 +4,7 @@ import pydicom
 import os
 import tensorflow as tf
 from lxml import etree
+from collections import Counter
 from util.helpers import calculate_series_z_offset
 
 MIN_HU = -1000
@@ -159,24 +160,36 @@ def parse_bboxes(xml_path):
   return res
 
 
-def generate_mask(transformed_bboxes, target_shape):
-  print("Generating mask...")
-  mask_volume = np.zeros(target_shape, dtype=np.uint8)
+def make_label_from_bboxes(transformed_bboxes, num_classes=4):
+    """
+    Create a one-hot 4-class label from bounding boxes.
+    - Each bbox is [..., label]
+    - label == 0  → background (ignored)
+    - label in {1,2,3,4} → tumor types 0–3 after shifting
+    """
+    # Extract raw labels
+    raw_labels = [int(b[-1]) for b in transformed_bboxes]
 
-  for bbox in transformed_bboxes:
-    # Coordinates in the array slicing order (Z, Y, X)
-    z_min, x_min, y_min, z_max, x_max, y_max, label = bbox 
-    
-    # 2. Use integer indices for slicing
-    z_min, x_min, y_min = int(z_min), int(x_min), int(y_min)
-    z_max, x_max, y_max = int(z_max), int(x_max), int(y_max)
-    
-    # 3. Apply NumPy Slicing to fill the region with the label
-    mask_volume[z_min:z_max, 
-                y_min:y_max, 
-                x_min:x_max] = int(label)
-  
-  return mask_volume
+    # Keep only non-background labels
+    tumor_labels = [l for l in raw_labels if l > 0]
+
+    if not tumor_labels:
+        raise ValueError("No non-background tumor labels found in bboxes.")
+
+    # Convert 1–4 → 0–3
+    zero_based = [l - 1 for l in tumor_labels]
+
+    for l in zero_based:
+        if l < 0 or l >= num_classes:
+            raise ValueError(f"Label {l} out of range for num_classes={num_classes}")
+
+    # Pick dominant tumor type
+    counts = Counter(zero_based)
+    dominant_label = counts.most_common(1)[0][0]  # integer 0–3
+
+    onehot_vector = tf.keras.utils.to_categorical(dominant_label, num_classes=num_classes)
+    return onehot_vector
+
     
 
 # apply same preprocessing to coordinates as image volume
@@ -243,7 +256,7 @@ def transform_coords(coords_list, original_shape, target_shape, original_spacing
 
 #-------- Final Function for raw data ---------#
 
-# takes in dataset map for ONE series, will later need to refactor for multiple series
+ #takes in dataset map for ONE series, will later need to refactor for multiple series
 def preprocess_data(dataset_map):
   try:
     # get parent directory and sampleID of series
@@ -272,6 +285,7 @@ def preprocess_data(dataset_map):
                        res.get('label', 'Label Error')]
       else:
         tumorCoords = [0, 0, 0, 0, 0, 0, 0]
+      
 
       annotations_extracted.append(tumorCoords)
       #-----------------------------------------------#
@@ -285,6 +299,8 @@ def preprocess_data(dataset_map):
     og_spacing = sitk_image_volume.GetSpacing()
     spacing_np = np.array(og_spacing)
     FALLBACK_SPACING = 5.0
+
+    TARGET_SHAPE = (128, 128, 128)
 
     if spacing_np[2] < 0.001:
         print("WARNING: zero z-spacing detected. setting Z-spacing to 5.0mm")
@@ -323,12 +339,12 @@ def preprocess_data(dataset_map):
     # for i, arr in enumerate(transformed_coords):
     #   print(i, ": ", arr)
 
-    # lowkey useless
-    mask_volume = generate_mask(transformed_coords, TARGET_SHAPE)
+    # mask_volume = generate_mask(transformed_coords, TARGET_SHAPE)
+    print("Transformed bboxes: ", transformed_coords)
 
-    integer_label = mask_volume.max()
-    # convert to one hot encoded vector
-    onehot_vector = tf.keras.utils.to_categorical(integer_label, num_classes=4)
+    onehot_vector = make_label_from_bboxes(transformed_coords, num_classes=4)
+    print("One-hot vector: ", onehot_vector)
+
     # CNN requires fixed input size (D x H x W)
     final_tensor = crop_and_pad(resampled_array, TARGET_SHAPE, 0.0)
 
@@ -354,6 +370,7 @@ def preprocess_data(dataset_map):
   except Exception as e:
     print(f"!!! PROCESSING FAILED for sample {fistSampleId}: {e}")
     return None, None
+
 
 #------- functions for preparing tensorflow dataset --------#
 
