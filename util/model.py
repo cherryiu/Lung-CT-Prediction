@@ -3,6 +3,7 @@ from tensorflow.keras.layers import GlobalAveragePooling3D, Conv3D, MaxPooling3D
 from tensorflow.keras.optimizers import Adam
 from tensorflow import keras
 import tensorflow as tf
+from tensorflow.keras import regularizers
 
 # Turn off XLA JIT globally to addr kernel error
 tf.config.optimizer.set_jit(False)
@@ -70,7 +71,7 @@ def train_model(model, params, train_size, train_dataset_batched, test_dataset_b
  		lr_scheduler,
 	  	tf.keras.callbacks.EarlyStopping(
         	monitor='val_loss',
-        	patience=8,
+        	patience=6,
         	restore_best_weights=True
     	)    
 	  ]
@@ -82,6 +83,7 @@ def train_model(model, params, train_size, train_dataset_batched, test_dataset_b
     N1 = 44
     N2 = 62
     total = N0 + N1 + N2
+    # clip weights
     class_weight = {
       0: total / (params['num_classes'] * N0),
       1: total / (params['num_classes'] * N1),

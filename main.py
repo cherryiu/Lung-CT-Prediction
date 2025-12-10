@@ -138,10 +138,9 @@ if __name__ == "__main__":
 
       'buffer_size': 16384,
       'batch_size': 4,
-      'epochs': 32,
+      'epochs': 15,
       'learning_rate': 0.0003,
-      'img_size': 299,
-
+      
       'train_ratio': 0.7,
       'val_ratio': 0.15,
       'test_ratio': 0.15,  
